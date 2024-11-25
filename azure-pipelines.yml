@@ -1,0 +1,171 @@
+trigger:
+  branches:
+    include:
+      - main
+      - master
+
+pr:
+  branches:
+    include:
+      - main
+      - master
+
+parameters:
+  - name: nombres_de_Epicas
+    displayName: 'Insertar nombre de epicas'
+    type: string
+    default: ''
+
+  - name: datos_de_Epicas
+    displayName: 'Insertar datos de Epicas'
+    type: string
+    default: ''
+
+  - name: impedimentos
+    displayName: 'Insertar impedimentos'
+    type: string
+    default: ''
+
+  - name: actividades
+    displayName: 'Insertar actividades'
+    type: string
+    default: ''
+
+  - name: acuerdos
+    displayName: 'Insertar acuerdos'
+    type: string
+    default: ''
+
+  - name: consideraciones
+    displayName: 'Insertar consideraciones'
+    type: string
+    default: ''
+
+  - name: cantidad_Historias
+    displayName: 'Insertar cantidad_Historias'
+    type: string
+    default: ''
+
+  - name: bloqueantes
+    displayName: 'Insertar bloqueantes'
+    type: string
+    default: ''
+
+  - name: criticos
+    displayName: 'Insertar criticos'
+    type: string
+    default: ''
+
+  - name: mayor
+    displayName: 'Insertar mayor'
+    type: string
+    default: ''
+
+  - name: normal
+    displayName: 'Insertar normal'
+    type: string
+    default: ''
+
+  - name: menor
+    displayName: 'Insertar menor'
+    type: string
+    default: ''
+
+  - name: sin_Clasificar
+    displayName: 'Insertar sin_Clasificar'
+    type: string
+    default: ''
+
+  - name: actividades_fuera
+    displayName: 'Insertar actividades_fuera'
+    type: string
+    default: ''
+  
+  - name: correo_receptor
+    displayName: 'Insertar a quien se le envia el correo'
+    type: string
+    default: ''
+
+stages:
+- stage: test
+  jobs:
+  - job: test
+    timeoutInMinutes: 60
+    
+    strategy:
+      matrix:
+        windows:
+          poolName: 'onpremise'
+          vmImage: 'windows-latest'  # Descomentar para agregar ejecucion en macOS
+    #    macOs:
+    #      poolName: 'onpremise'
+    #      vmImage: 'macOs-latest'
+    #  maxParallel: 2  # Descomentar para agregar ejecucion en paralelo de multiples plataformas si existen varios agentes(hosted)
+    
+    variables:
+    - group: 'ConexionBD'
+    - name: LISTA_EPICAS
+      value: ${{ parameters.nombres_de_Epicas }}
+    - name: DATOS_EPICAS
+      value: ${{ parameters.datos_de_Epicas }}
+    - name: IMPEDIMENTOS
+      value: ${{ parameters.impedimentos }}
+    - name: ACTIVIDADES
+      value: ${{ parameters.actividades }}
+    - name: ACUERDOS
+      value: ${{ parameters.acuerdos }}
+    - name: CONSIDERACIONES
+      value: ${{ parameters.consideraciones }}
+    - name: CANTIDAD_HISTORIAS
+      value: ${{ parameters.cantidad_historias }}
+    - name: BLOQUEANTES
+      value: ${{ parameters.bloqueantes }}
+    - name: CRITICOS
+      value: ${{ parameters.criticos }}
+    - name: MAYOR
+      value: ${{ parameters.mayor }}
+    - name: NORMAL
+      value: ${{ parameters.normal }}
+    - name: MENOR
+      value: ${{ parameters.menor }}
+    - name: SIN_CLASIFICAR
+      value: ${{ parameters.sin_clasificar }}
+    - name: ACTIVIDADES_FUERA
+      value: ${{ parameters.actividades_fuera }}
+    - name: CORREO_EMISOR
+      value: $(Build.RequestedForEmail) 
+    - name: CORREO_RECEPTOR
+      value: ${{ parameters.correo_receptor }}
+  
+    pool:
+      name: $(poolName)
+      vmImage: $(vmImage) 
+        
+    steps:
+    - checkout: self
+      displayName: 'Clonar repositorio'
+  
+    - task: NodeTool@0
+      inputs:
+        versionSpec: '>=20.x'
+      displayName: 'Configurar Node.js'
+  
+    - script: |
+        npm ci
+      displayName: 'Instalar dependencias de CI'
+
+    - script: |
+        npx tsc
+      displayName: 'Compilar codigo'  
+
+    - script: |
+        npm run reporte
+      displayName: 'Ejecutar escenarios de prueba'
+
+    - task: PublishPipelineArtifact@1
+      inputs:
+        targetPath: |
+         $(Pipeline.Workspace)/s/src/reports/
+        artifactName: 'ReporteHTML-$(vmImage)'
+      condition: always()
+      displayName: 'Generar artefacto de Reporte HTML para $(vmImage)'
